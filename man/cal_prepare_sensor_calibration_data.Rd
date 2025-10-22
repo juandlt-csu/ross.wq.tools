@@ -4,7 +4,7 @@
 \alias{cal_prepare_sensor_calibration_data}
 \title{Prepare Sensor Calibration Data for Back Calibration}
 \usage{
-cal_prepare_sensor_calibration_data(sensor_calibration_data_list)
+cal_prepare_sensor_calibration_data(sensor_calibration_data_list, cal_prov_df)
 }
 \arguments{
 \item{sensor_calibration_data_list}{Nested list containing joined sensor and

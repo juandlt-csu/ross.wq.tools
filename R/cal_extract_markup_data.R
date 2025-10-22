@@ -18,6 +18,7 @@
 #' @seealso [load_calibration_data()]
 #' @seealso [join_sensor_calibration_data()]
 
+# TODO: Update this to accept xml2 generated HTML files for speed reasons
 cal_extract_markup_data <- function(field_cal_dir = here::here("data", "calibration_reports"),
                                     benchtop_cal_dir = here::here("data", "calibration_reports", "benchtop_calibrations")){
 
@@ -49,7 +50,8 @@ cal_extract_markup_data <- function(field_cal_dir = here::here("data", "calibrat
   }
 
   # Extract site names and datetime information from field calibration file paths
-  # No error handling internally in this map -- assuming that
+  # No error handling internally in this map -- assuming that file paths always
+  # have the right information in the right structure
   f_cal_info <- f_cal_paths %>%
     purrr::map(function(path_str){
       str_list <- basename(path_str) %>%
@@ -76,6 +78,7 @@ cal_extract_markup_data <- function(field_cal_dir = here::here("data", "calibrat
   b_cal_paths <- purrr::discard(b_cal_paths, ~grepl("vulink|virridy", .x, ignore.case = T))
 
   # Extract datetime information from benchtop calibration file paths
+  # TODO: Update this to a more robust HTML parsing solution
   b_cal_info <- b_cal_paths %>%
     purrr::map(function(path_str){
       str_list <- basename(path_str) %>%
@@ -101,6 +104,7 @@ cal_extract_markup_data <- function(field_cal_dir = here::here("data", "calibrat
   cal_info <- c(f_cal_info, b_cal_info)
 
   # Load HTML markup from all calibration files
+  # TODO: It is easier for the user if the function does all this with an HTML path, but this seems like too deep of an assumption
   cal_html <- purrr::map(cal_paths, rvest::read_html)
 
   # Extract calibration data from each HTML file
@@ -159,7 +163,7 @@ cal_extract_markup_data <- function(field_cal_dir = here::here("data", "calibrat
         html_div_info
       ) %>%
         # Standardize site names using fix_sites() function
-        fix_sites() %>%
+        ross.wq.tools::fix_site_names() %>%
         # Standardize sensor parameter names to match sensor data conventions
         dplyr::mutate(
           sensor = dplyr::case_when(
@@ -216,6 +220,7 @@ cal_extract_markup_data <- function(field_cal_dir = here::here("data", "calibrat
     )
 
   # Structure calibration data by year and site-parameter combinations
+  # TODO: This would be much easier if it were just a tabular structure that could be saved as a parquet file
   calibrations_list <- calibrations %>%
     # Parse datetime columns
     dplyr::mutate(

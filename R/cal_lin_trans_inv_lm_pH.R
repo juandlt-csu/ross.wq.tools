@@ -29,7 +29,7 @@ cal_lin_trans_inv_lm_pH <- function(df = ., obs_col = "mean", mv_col = "mean_mV_
 
   # Extract calibration coefficients from bounding calibrations
   calibration_1 <- df[[lm_coefs_col]][[1]]
-  calibration_2 <- df[[lm_coefs_col]][[nrow(df)]]
+  calibration_2 <- df[["calibration_ceofs_lead"]][[1]]
 
   # Handle missing calibration data
   cal_1_check <- (is.data.frame(calibration_1) && nrow(calibration_1) != 0)

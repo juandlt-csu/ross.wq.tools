@@ -29,7 +29,8 @@ cal_lin_trans_lm <- function(df, raw_col, lm_coefs_col, wt_col){
 
   # Extract calibration coefficients from bounding calibrations
   calibration_1 <- df[[lm_coefs_col]][[1]]
-  calibration_2 <- df[[lm_coefs_col]][[nrow(df)]]
+  # I am hard coding this in for now to move forward, there will be lots of updates to spruce this up later
+  calibration_2 <- df[["calibration_coefs_lead"]][[1]]
 
   # Handle missing calibration data
   cal_1_check <- (is.data.frame(calibration_1) && nrow(calibration_1) != 0)

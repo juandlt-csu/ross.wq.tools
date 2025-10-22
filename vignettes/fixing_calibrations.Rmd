@@ -49,21 +49,22 @@ invisible(
   })
 )
 
+load_all()
 #library non CRAN packages
-lapply(c("rossyndicate/fcw.qaqc"), function(x) {
-  pack_name <- unlist(strsplit(x, "/"))[2] #get package name (no GH username)
-  
-  if (pack_name %in% installed.packages()) {
-    suppressMessages({
-      library(pack_name, character.only = TRUE)
-    })
-  } else {
-    suppressMessages({
-      devtools::install_github(x)
-      library(pack_name, character.only = TRUE)
-    })
-  }
-})
+# lapply(c("rossyndicate/fcw.qaqc"), function(x) {
+#   pack_name <- unlist(strsplit(x, "/"))[2] #get package name (no GH username)
+#   
+#   if (pack_name %in% installed.packages()) {
+#     suppressMessages({
+#       library(pack_name, character.only = TRUE)
+#     })
+#   } else {
+#     suppressMessages({
+#       devtools::install_github(x)
+#       library(pack_name, character.only = TRUE)
+#     })
+#   }
+# })
 ```
 
 The environment setup loads essential packages for data manipulation and 
@@ -71,8 +72,15 @@ sources all calibration functions needed for the workflow.
 
 # Load Calibration Data
 
+UPDATE (JPD): This should get renamed. load calibration data specifically pulls/updates the
+calibration data with the site metadata, but for this solution I am making a calibration
+data that is filtered to make sensor specific calibration provenance objects that 
+we can use to determine which calibrations are tied to which sensors (rather than sites).
+
 ```{r load-cal-data}
-load_calibration_data()
+load_calibration_data(
+  cal_data_file_path = here("..", "poudre_sonde_network", "data", "calibration_reports", "0_cal_data_munge", "munged_calibration_data.RDS")
+)
 ```
 
 The `load_calibration_data()` function loads the calibration coefficients and 
@@ -85,7 +93,7 @@ calls the `cal_extract_markup_data()`, which generates this calibration data
 fresh from raw HTML files from the directory provided to it. By default these 
 directories are: `field_cal_dir = here("data", "calibration_reports")` and
 `benchtop_cal_dir = here("data", "calibration_reports", "benchtop_calibrations")`.
-Though, note that the arguments for `cal_extract_markup_data()` can be change 
+Though, note that the arguments for `cal_extract_markup_data()` can be changed 
 within `load_calibration_data()` via the `...` arguments. Note that `cal_extract_markup_data()`
 takes a minute to finish running.
 
@@ -98,108 +106,145 @@ Each site-parameter entry includes calibration coefficients (slope and offset va
 and drift correction measurements (pre- and post-calibration standard readings),
 along with their related identification and datetime information.
 
+UPDATE (JPD): I will definitely incorporate the following code into one of the functions here (probably the 
+data generation one), but I wanted to draft here to see what I could do with what
+I had already. 
+
+# Extract Sensor Specific Calibration Information
+```{r}
+cal_provenance <- calibration_data  %>% 
+  map_dfr(function(year){
+    calibrated_site_param_list <- year %>%
+      map_dfr(function(site_param){
+        site_param %>% 
+          select(sensor, sensor_serial, sensor_date, calibration_coefs)
+      })
+  })
+
+# Lets see if this is good enough for now
+cal_provenance_list <- cal_provenance %>%
+  split(f = list(.$sensor, .$sensor_serial), sep = "-") %>%
+  discard(~is.null(.)||nrow(.) == 0) %>%
+  map(function(sensor_df){
+    sensor_df %>%
+      mutate(
+        sensor_date_lead = dplyr::lead(sensor_date, 1),
+        calibration_coefs_lead = dplyr::lead(calibration_coefs, 1)
+      ) %>%
+      # We are going to remove calibration_coefs here to avoid weird stuff down the line
+      select(-calibration_coefs)
+  }) 
+
+cal_provenance_df <- bind_rows(cal_provenance_list)
+```
+
+
 # Load Sensor Data
 
 ```{r load-snsr-data}
-# Read in 2022, 2023, 2024, and 2025 sensor data
-if (file.exists(here("data", "manual_data_verification", "complete_dataset", "23_25_hv_pull"))) {
-  sensor_data <- read_rds(here("data", "manual_data_verification", "complete_dataset", "23_25_hv_pull")) %>% 
-    set_names(names(calibration_data)) %>% 
-    compact()
-} else {
-  library(fcw.qaqc)
-  
-  sensor_data <- names(calibration_data) %>% 
-    map(function(year){
-      
-      # Grab the site for the year from the calibration_data[[year]]
-      site_list <- map(names(calibration_data[[year]]), ~word(.x, 1, sep = "-")) %>% 
-        unlist() %>% 
-        unique(.) 
-      
-      site_list <- unique(c("tamasag", "legacy", "lincoln", "timberline", "prospect", "boxelder", "archery", "river bluffs", site_list)) 
-      
-      # Generate start and end times for the HydroVu API request
-      start_dt_string <- paste0(year, "-01-01 00:00:00")
-      start_dt = as.POSIXct(start_dt_string, tz = "America/Denver")
-      start_dt_utc = with_tz(start_dt, tzone = "UTC")
-      
-      end_dt_string <- paste0(year, "-12-31 11:59:59")
-      end_dt = as.POSIXct(end_dt_string, tz = "America/Denver")
-      end_dt_utc = with_tz(end_dt, tzone = "UTC")
-      
-      api_start_dates <- tibble(site = site_list,
-                                start_DT = start_dt_utc,
-                                end_DT = end_dt_utc)
-      
-      # Grab HydroVu Credits
-      hv_creds <- read_yaml(here("creds", "HydroVuCreds.yml"))
-      
-      hv_token <- hv_auth(client_id = as.character(hv_creds["client"]),
-                          client_secret = as.character(hv_creds["secret"]))
-      
-      hv_sites <- hv_locations_all(hv_token) %>% 
-        filter(!grepl("vulink|virridy", name, ignore.case = TRUE),
-               grepl(str_flatten(site_list, collapse = "|"), name, ignore.case = TRUE))
-      
-      # Create temporary directory
-      temp_dir <- file.path(tempdir(), paste0("api_data_", year))
-      dir.create(temp_dir, showWarnings = FALSE)
-      temp_dir <- normalizePath(temp_dir)
-      
-      # Pull the API data
-      pwalk(api_start_dates,
-            function(site, start_DT, end_DT) {
-              message("Requesting HydroVu data for site: ", site)
-              fcw.qaqc::api_puller(
-                site = site,
-                start_dt = start_DT,
-                end_dt = end_DT,
-                api_token = hv_token,
-                hv_sites_arg = hv_sites,
-                # Use temporary directory for the API call
-                dump_dir = temp_dir,
-                synapse_env = FALSE,
-                fs = NULL
-              )
-            }
-      )
-      
-      # Munge the API data
-      message("Starting Munge Step")
-      
-      if (length(list.files(temp_dir)) == 0) {
-        return(NULL)
-      }
-      
-      new_data <- fcw.qaqc::munge_api_data(api_dir = temp_dir) %>% 
-        fix_sites() %>%
-        split(f = list(.$site, .$parameter), sep = "-") %>%
-        purrr::keep(~ nrow(.) > 0)
-      
-      # Tidy the API data
-      message("Starting Tidy Step")
-      sites <- unique(dplyr::bind_rows(new_data) %>% dplyr::pull(site))
-      
-      params <- c("Chl-a Fluorescence", "Depth", "DO", "ORP", "pH", "Specific Conductivity",
-                  "Pressure", "Turbidity")
-      
-      site_param_combos <- crossing(sites, params) %>% 
-        mutate(combo = paste0(sites, "-", params)) %>% 
-        pull(combo) 
-      
-      new_data <- new_data[names(new_data) %in% site_param_combos]
-      
-      sensor_data <- map(new_data, ~fcw.qaqc::tidy_api_data(api_data = .x)) %>% 
-        keep(~!is.null(.))
-      
-      # Save the API data...
-      return(sensor_data)
-    })
-  
-  # Save the raw data into a file that we can pull in in the future...
-  write_rds(sensor_data, here("data", "manual_data_verification", "complete_dataset", "23_25_hv_pull"))
-}
+# Read in 2023, 2024, and 2025 sensor data
+sensor_data <- read_rds(here("..", "poudre_sonde_network", "data", "manual_data_verification", "complete_dataset", "23_25_hv_pull"))
+
+# Commenting all this out. I think there is a better data source somewhere. -JPD
+
+# if (file.exists(here("data", "manual_data_verification", "complete_dataset", "23_25_hv_pull"))) {
+#   sensor_data <- read_rds(here("..", "poudre_sonde_network", "data", "manual_data_verification", "complete_dataset", "23_25_hv_pull")) %>% 
+#     set_names(names(calibration_data)) %>% 
+#     compact()
+# } else {
+#   library(fcw.qaqc)
+#   
+#   sensor_data <- names(calibration_data) %>% 
+#     map(function(year){
+#       
+#       # Grab the site for the year from the calibration_data[[year]]
+#       site_list <- map(names(calibration_data[[year]]), ~word(.x, 1, sep = "-")) %>% 
+#         unlist() %>% 
+#         unique(.) 
+#       
+#       site_list <- unique(c("tamasag", "legacy", "lincoln", "timberline", "prospect", "boxelder", "archery", "river bluffs", site_list)) 
+#       
+#       # Generate start and end times for the HydroVu API request
+#       start_dt_string <- paste0(year, "-01-01 00:00:00")
+#       start_dt = as.POSIXct(start_dt_string, tz = "America/Denver")
+#       start_dt_utc = with_tz(start_dt, tzone = "UTC")
+#       
+#       end_dt_string <- paste0(year, "-12-31 11:59:59")
+#       end_dt = as.POSIXct(end_dt_string, tz = "America/Denver")
+#       end_dt_utc = with_tz(end_dt, tzone = "UTC")
+#       
+#       api_start_dates <- tibble(site = site_list,
+#                                 start_DT = start_dt_utc,
+#                                 end_DT = end_dt_utc)
+#       
+#       # Grab HydroVu Credits
+#       hv_creds <- read_yaml(here("creds", "HydroVuCreds.yml"))
+#       
+#       hv_token <- hv_auth(client_id = as.character(hv_creds["client"]),
+#                           client_secret = as.character(hv_creds["secret"]))
+#       
+#       hv_sites <- hv_locations_all(hv_token) %>% 
+#         filter(!grepl("vulink|virridy", name, ignore.case = TRUE),
+#                grepl(str_flatten(site_list, collapse = "|"), name, ignore.case = TRUE))
+#       
+#       # Create temporary directory
+#       temp_dir <- file.path(tempdir(), paste0("api_data_", year))
+#       dir.create(temp_dir, showWarnings = FALSE)
+#       temp_dir <- normalizePath(temp_dir)
+#       
+#       # Pull the API data
+#       pwalk(api_start_dates,
+#             function(site, start_DT, end_DT) {
+#               message("Requesting HydroVu data for site: ", site)
+#               fcw.qaqc::api_puller(
+#                 site = site,
+#                 start_dt = start_DT,
+#                 end_dt = end_DT,
+#                 api_token = hv_token,
+#                 hv_sites_arg = hv_sites,
+#                 # Use temporary directory for the API call
+#                 dump_dir = temp_dir,
+#                 synapse_env = FALSE,
+#                 fs = NULL
+#               )
+#             }
+#       )
+#       
+#       # Munge the API data
+#       message("Starting Munge Step")
+#       
+#       if (length(list.files(temp_dir)) == 0) {
+#         return(NULL)
+#       }
+#       
+#       new_data <- fcw.qaqc::munge_api_data(api_dir = temp_dir) %>% 
+#         fix_sites() %>%
+#         split(f = list(.$site, .$parameter), sep = "-") %>%
+#         purrr::keep(~ nrow(.) > 0)
+#       
+#       # Tidy the API data
+#       message("Starting Tidy Step")
+#       sites <- unique(dplyr::bind_rows(new_data) %>% dplyr::pull(site))
+#       
+#       params <- c("Chl-a Fluorescence", "Depth", "DO", "ORP", "pH", "Specific Conductivity",
+#                   "Pressure", "Turbidity")
+#       
+#       site_param_combos <- crossing(sites, params) %>% 
+#         mutate(combo = paste0(sites, "-", params)) %>% 
+#         pull(combo) 
+#       
+#       new_data <- new_data[names(new_data) %in% site_param_combos]
+#       
+#       sensor_data <- map(new_data, ~fcw.qaqc::tidy_api_data(api_data = .x)) %>% 
+#         keep(~!is.null(.))
+#       
+#       # Save the API data...
+#       return(sensor_data)
+#     })
+#   
+#   # Save the raw data into a file that we can pull in in the future...
+#   write_rds(sensor_data, here("data", "manual_data_verification", "complete_dataset", "23_25_hv_pull"))
+# }
 
 ```
 
@@ -218,6 +263,7 @@ sensor readings with their corresponding calibration information.
 
 ```{r join-data}
 sensor_calibration_data <- cal_join_sensor_calibration_data(
+  # TODO: Join with field visits and make some elastic join based on the most recent site visit
   # Sometimes the calibration date does not line up with a field visit.
   sensor_data_list = sensor_data,
   calibration_data_list = calibration_data
@@ -231,8 +277,26 @@ reading, creating a foundation for the back-calibration process.
 
 ## Prepare Data for Back Calibration
 
+UPDATE (JPD): We will have to join the sensor provenance data here in the workflow.
+
+There are some notes in the updated `cal_prepare_sensor_calibration_data` function,
+but once this is finalized those will be gone. This will also get cleaned up,
+but I want to explain what I did so that it can be critiqued easily. Some version 
+of this will also be in the draft PR.
+
+Okay. The previous solution had us binding consecutive "calibration chunks" together
+so that we would be able to go from one calibration to the next. This update simplifies
+this process a lot. Instead of doing that we make the `cal_provenance_df` object
+that has a "lead" sensor calibration date and calibration coefs column that we use 
+to join with the calibration chunks that we make in `cal_prepare_sensor_calibration_data`.
+The code updates that follow just require pointing at a new part of the df that 
+gets passed into the functions that are called in cal_back calibrate.
+
 ```{r prep-data}
-prepped_snsr_cal_data <- cal_prepare_sensor_calibration_data(sensor_calibration_data)
+prepped_snsr_cal_data <- cal_prepare_sensor_calibration_data(
+  sensor_calibration_data_list = sensor_calibration_data,
+  cal_prov_df = cal_provenance_df
+)
 ```
 
 The `prepare_sensor_calibration_data()` function segments the joined data into 
@@ -244,7 +308,6 @@ calibration parameters.
 # Back Calibration
 
 ```{r Apply back calibration functions to the data}
-# NOTE: THIS WILL NOT RUN YET!
 calibrated_data <- prepped_snsr_cal_data %>% 
   map(function(year){
     calibrated_site_param_list <- year %>%
