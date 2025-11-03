@@ -216,11 +216,10 @@ cal_extract_markup_data <- function(field_cal_dir = here::here("data", "calibrat
       # Instrument identification
       sonde_serial, sensor_serial,
       # Calibration data
-      calibration_coefs, drift_input
+      calibration_coefs
     )
 
   # Structure calibration data by year and site-parameter combinations
-  # TODO: This would be much easier if it were just a tabular structure that could be saved as a parquet file
   calibrations_list <- calibrations %>%
     # Parse datetime columns
     dplyr::mutate(
@@ -234,7 +233,7 @@ cal_extract_markup_data <- function(field_cal_dir = here::here("data", "calibrat
       site_param_split_list <- year_data %>%
         split(f = list(.$site, .$sensor), sep = "-", drop = TRUE) %>%
         purrr::discard(\(site_param_df) nrow(site_param_df) == 0) %>%
-        purrr::map(function(site_param_df){
+        purrr::map_dfr(function(site_param_df){
           site_param_df %>%
             # Deduplicate calibrations by selecting most recent per day
             dplyr::group_by(sensor, sonde_date, sensor_serial) %>%
@@ -246,7 +245,23 @@ cal_extract_markup_data <- function(field_cal_dir = here::here("data", "calibrat
             dplyr::ungroup() %>%
             # Remove any remaining duplicates
             dplyr::distinct()
-        })
+        }) %>%
+        # Add calibration provenance
+        split(f = list(.$sensor, .$sensor_serial), sep = "-") %>%
+        discard(~is.null(.) || nrow(.) == 0) %>%
+        map_dfr(function(sensor_serial_df) {
+          sensor_serial_df %>%
+            dplyr::arrange(sensor_date) %>%
+            dplyr::mutate(
+              sensor_date_lead = dplyr::lead(sensor_date, 1),
+              calibration_coefs_lead = dplyr::lead(calibration_coefs, 1)
+              # TODO: Add lag calibration for bad calibration adjustment in the future
+            )
+        }) %>%
+        # Transform back to site-parameter
+        split(f = list(.$site, .$sensor), sep = "-", drop = TRUE) %>%
+        purrr::discard(\(site_param_df) nrow(site_param_df) == 0)
+
     })
 
   # Return organized calibration data structure

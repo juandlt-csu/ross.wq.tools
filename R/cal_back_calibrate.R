@@ -36,8 +36,6 @@ cal_back_calibrate <- function(prepped_snsr_cal_df) {
         cal_inv_lm(df = ., obs_col = "mean", lm_coefs_col = "calibration_coefs") %>%
         # Apply temporally-weighted linear transformation between calibrations
         cal_lin_trans_lm(df = ., raw_col = "mean_raw", lm_coefs_col = "calibration_coefs", wt_col = "wt") %>%
-        # Apply single-point drift correction
-        cal_one_point_drift(df = ., lm_trans_col = "mean_lm_trans", drift_corr_col = "drift_input", wt_col = "wt") %>%
         # Validate calibration results and create final calibrated values
         cal_check(df = ., obs_col = "mean", lm_trans_col = "mean_lm_trans")
     return(head(back_calibrated_chunk, -1))
@@ -52,8 +50,6 @@ cal_back_calibrate <- function(prepped_snsr_cal_df) {
       cal_inv_lm(df = ., obs_col = "mean", lm_coefs_col = "calibration_coefs") %>%
       # Apply temporally-weighted linear transformation between calibrations
       cal_lin_trans_lm(df = ., raw_col = "mean_raw", lm_coefs_col = "calibration_coefs", wt_col = "wt") %>%
-      # Apply two-point drift correction for turbidity-specific drift patterns
-      cal_two_point_drift(df = ., lm_trans_col = "mean_lm_trans", drift_corr_col = "drift_input", wt_col = "wt") %>%
       # Validate calibration results and create final calibrated values
       cal_check(df = ., obs_col = "mean", lm_trans_col = "mean_lm_trans")
     return(head(back_calibrated_chunk, -1))
@@ -73,8 +69,6 @@ cal_back_calibrate <- function(prepped_snsr_cal_df) {
       cal_lm_pH(df = ., obs_col = "mean", lm_coefs_col = "calibration_coefs") %>%
       # Apply temporally-weighted inverse transformation back to pH units
       cal_lin_trans_inv_lm_pH(df = ., obs_col = "mean", mv_col = "mean_mV_f", lm_coefs_col = "calibration_coefs", wt_col = "wt") %>%
-      # Apply three-point drift correction with piecewise linear interpolation
-      cal_three_point_drift_pH(df = ., obs_col = "mean", lm_trans_col = "mean_pH_f", drift_corr_col = "drift_input", wt_col = "wt") %>%
       # Validate calibration results and create final calibrated values
       cal_check(df = ., obs_col = "mean", lm_trans_col = "mean_pH_f")
     return(head(back_calibrated_chunk, -1))

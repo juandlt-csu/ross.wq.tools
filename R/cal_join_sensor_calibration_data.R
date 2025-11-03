@@ -43,7 +43,7 @@ cal_join_sensor_calibration_data <- function(sensor_data_list, calibration_data_
           sensor_data <- year_sensor_data[[site_param]]
           calibration_data <- select(year_calibration_data[[site_param]], -sensor)
 
-          # Join calibration data to sensor data using temporal proximity matching
+          # Join calibration data to sensor data using temporal proximity matching.
           # For each sensor timestamp, find the most recent calibration that
           # precedes or equals the sensor measurement time
           by <- join_by(site, closest(DT_round >= file_date))

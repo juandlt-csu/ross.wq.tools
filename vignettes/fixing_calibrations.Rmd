@@ -72,10 +72,7 @@ sources all calibration functions needed for the workflow.
 
 # Load Calibration Data
 
-UPDATE (JPD): This should get renamed. load calibration data specifically pulls/updates the
-calibration data with the site metadata, but for this solution I am making a calibration
-data that is filtered to make sensor specific calibration provenance objects that 
-we can use to determine which calibrations are tied to which sensors (rather than sites).
+This pulls the data with the calibration provenance in it.
 
 ```{r load-cal-data}
 load_calibration_data(
@@ -105,39 +102,6 @@ contains site-parameter combinations (e.g., "lincoln-pH", "tamasag-Turbidity").
 Each site-parameter entry includes calibration coefficients (slope and offset values) 
 and drift correction measurements (pre- and post-calibration standard readings),
 along with their related identification and datetime information.
-
-UPDATE (JPD): I will definitely incorporate the following code into one of the functions here (probably the 
-data generation one), but I wanted to draft here to see what I could do with what
-I had already. 
-
-# Extract Sensor Specific Calibration Information
-```{r}
-cal_provenance <- calibration_data  %>% 
-  map_dfr(function(year){
-    calibrated_site_param_list <- year %>%
-      map_dfr(function(site_param){
-        site_param %>% 
-          select(sensor, sensor_serial, sensor_date, calibration_coefs)
-      })
-  })
-
-# Lets see if this is good enough for now
-cal_provenance_list <- cal_provenance %>%
-  split(f = list(.$sensor, .$sensor_serial), sep = "-") %>%
-  discard(~is.null(.)||nrow(.) == 0) %>%
-  map(function(sensor_df){
-    sensor_df %>%
-      mutate(
-        sensor_date_lead = dplyr::lead(sensor_date, 1),
-        calibration_coefs_lead = dplyr::lead(calibration_coefs, 1)
-      ) %>%
-      # We are going to remove calibration_coefs here to avoid weird stuff down the line
-      select(-calibration_coefs)
-  }) 
-
-cal_provenance_df <- bind_rows(cal_provenance_list)
-```
-
 
 # Load Sensor Data
 
@@ -293,9 +257,8 @@ The code updates that follow just require pointing at a new part of the df that
 gets passed into the functions that are called in cal_back calibrate.
 
 ```{r prep-data}
-prepped_snsr_cal_data <- cal_prepare_sensor_calibration_data(
-  sensor_calibration_data_list = sensor_calibration_data,
-  cal_prov_df = cal_provenance_df
+prepped_snsr_cal_data <- cal_prepare_calibration_windows(
+  sensor_calibration_data_list = sensor_calibration_data
 )
 ```
 
@@ -354,7 +317,7 @@ requirements.
 # Saving the Back-calibrated Data
 
 ```{r save-cal-data}
-write_rds(calibrated_data, here("data", "manual_data_verification", "complete_dataset", "calibrated_sensor_data.rds"))
+write_rds(calibrated_data, here("..", "poudre_sonde_network", "data", "manual_data_verification", "complete_dataset", "calibrated_sensor_data.rds"))
 ```
 
 # Explore the calibrations
@@ -368,40 +331,80 @@ parameter <- unique(calibrated_test$parameter)
 site <- unique(calibrated_test$site)
 
 # Create ggplot with basic labels and legend
-calibration_p_test <- ggplot(calibrated_test) +
-  geom_line(aes(x = DT_round, y = mean, color = "Original"), alpha = 0.6) +
-  geom_line(aes(x = DT_round, y = mean_raw, color = "Raw"), alpha = 0.3, linetype = "dotted") +
-  geom_line(aes(x = DT_round, y = mean_drift_trans, color = "Drift Corrected"), alpha = 0.6) +
-  geom_line(aes(x = DT_round, y = mean_lm_trans, color = "Linear Transform"), alpha = 0.6) +
-  scale_color_manual(values = c("Original" = "red", "Raw" = "yellow", 
-                                "Linear Transform" = "green", "Drift Corrected" = "blue")) +
+# calibration_p_test <- ggplot(calibrated_test) +
+#   geom_line(aes(x = DT_round, y = mean, color = "Original"), alpha = 0.6) +
+#   geom_line(aes(x = DT_round, y = mean_raw, color = "Raw"), alpha = 0.3, linetype = "dotted") +
+#   geom_line(aes(x = DT_round, y = mean_lm_trans, color = "Linear Transform"), alpha = 0.6) +
+#   scale_color_manual(values = c("Original" = "red", "Raw" = "yellow", 
+#                                 "Linear Transform" = "green")) +
+#   labs(
+#     title = paste(site, parameter, "2024 Calibration"),
+#     x = "Date",
+#     y = paste(parameter, "(units)"),
+#     color = "Data Type"
+#   ) +
+#   ylim(c(0,50)) +
+#   theme_minimal()
+
+# Create a combined dataset for plotting - exclude uncalibrated data
+plot_data <- bind_rows(
+  # Original data
+  calibrated_test %>% 
+    select(DT_round, value = mean) %>%
+    mutate(sensor_serial = "Original", cal_status = "Reference"),
+  
+  # Only calibrated sensor data
+  calibrated_test %>%
+    filter(cal_check == TRUE) %>%  # Only keep calibrated data
+    select(DT_round, value = mean_lm_trans, sensor_serial, cal_check) %>%
+    mutate(cal_status = "Calibrated")
+)
+
+# Define distinct colors for the sensors
+sensor_colors <- c("1048153" = "tomato",  
+                   "1095007" = "steelblue",  
+                   "859922" = "darkgreen",    
+                   "Original" = "lightgrey")   
+
+calibration_p_test <- ggplot(plot_data) +
+  geom_line(aes(x = DT_round, y = value, 
+                color = sensor_serial, 
+                linetype = cal_status), 
+            alpha = 0.7, size = 0.5) +
+  scale_color_manual(values = sensor_colors) +
+  scale_linetype_manual(values = c("Reference" = "solid", 
+                                   "Calibrated" = "dashed"),
+                        name = "Status") +
   labs(
     title = paste(site, parameter, "2024 Calibration"),
     x = "Date",
     y = paste(parameter, "(units)"),
-    color = "Data Type"
+    color = "Sensor"
   ) +
   ylim(c(0,50)) +
   theme_minimal()
 
 # Convert to plotly
 calibration_p_test <- ggplotly(calibration_p_test)
-
-# Add vertical lines for calibration dates
-vline_dates <- round_date(unique(calibrated_test$file_date), "15 minutes")
-for(date in vline_dates) {
-  calibration_p_test <- calibration_p_test %>% add_segments(x = date, xend = date, 
-                                                            y = min(calibrated_test$mean_drift_trans, na.rm = TRUE), 
-                                                            yend = max(calibrated_test$mean_drift_trans, na.rm = TRUE), 
-                                                            line = list(color = "black", dash = "dash"),
-                                                            showlegend = FALSE)
-}
-
-# Display the plot
-calibration_p_test <- ggplotly(calibration_p_test)
-
 calibration_p_test
 ```
+
+Some notes on this updated plot: 
+
+I am highlighting sensors to be able to recognize sensor swaps for this draft. 
+
+Here we see some data that is not corrected. Presumably the first instance of this
+happened when sensor `1095007` was swapped out for sensor `859922` and was not 
+calibrated again that year. There seems to have been another sensor swap for sensor
+`859922` later in the year, but this is not tracked in the data. I checked for 
+weirdness in the data processing steps, but there was nothing in those steps outputs 
+code that tipped me off of a potential bug, though I am definitely not ruling
+that out. 
+
+Now that we are using sensor specific calibration provenance for back calibration, 
+I would expect for these kinds of situations to happen more frequently, especially
+for data near the end of a year. If a sensor was swapped out and not calibrated 
+again for the year, this is what we would expect from the data.
 
 # Workflow Summary
 The complete calibration workflow transforms raw sensor data through four main stages. 
