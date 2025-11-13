@@ -78,6 +78,12 @@ This pulls the data with the calibration provenance in it.
 load_calibration_data(
   cal_data_file_path = here("..", "poudre_sonde_network", "data", "calibration_reports", "0_cal_data_munge", "munged_calibration_data.RDS")
 )
+
+# Temporarily remove pH to test this
+calibration_data <- calibration_data %>%
+  map(function(year_list){
+    year_list[!str_detect(names(year_list), "pH")]
+  })
 ```
 
 The `load_calibration_data()` function loads the calibration coefficients and 
@@ -225,12 +231,15 @@ sensor readings with their corresponding calibration information.
 
 ## Join Sensor and Calibration Data
 
-```{r join-data}
+```{r}
+# We should be able to use this as is, to combine the sensor data with the 
+# annotated calibration data
+
 sensor_calibration_data <- cal_join_sensor_calibration_data(
   # TODO: Join with field visits and make some elastic join based on the most recent site visit
   # Sometimes the calibration date does not line up with a field visit.
   sensor_data_list = sensor_data,
-  calibration_data_list = calibration_data
+  calibration_data_list = annotated_cal_data
 ) 
 ```
 

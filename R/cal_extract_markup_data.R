@@ -219,13 +219,20 @@ cal_extract_markup_data <- function(field_cal_dir = here::here("data", "calibrat
       calibration_coefs
     )
 
-  # Structure calibration data by year and site-parameter combinations
-  calibrations_list <- calibrations %>%
+
+  calibration_list <- calibrations %>%
     # Parse datetime columns
     dplyr::mutate(
       sonde_date = lubridate::mdy(sonde_date),
       sensor_date = lubridate::mdy(dplyr::na_if(sensor_date, "Factory Defaults"))
     ) %>%
+    # Before we split this data up, we need to figure out each parameters statistic
+    # UPDATE `annotate_calibration_data` function WITH THE STATISTIC THAT WE WANT
+    # TO USE TO MAKE THE THRESHOLD
+    # For now we are just going to use all the sensor calibration coefficients as the
+    # statistic that we are going to use
+    annotate_calibration_data() %>%
+    # Structure calibration data by year and site-parameter combinations
     # Split by year
     split(f = lubridate::year(.$file_date)) %>%
     purrr::map(\(year_data){
@@ -253,9 +260,10 @@ cal_extract_markup_data <- function(field_cal_dir = here::here("data", "calibrat
           sensor_serial_df %>%
             dplyr::arrange(sensor_date) %>%
             dplyr::mutate(
+              correct_calibration_lead = dplyr::lead(correct_calibration, 1),
+              # instead of a simple lead, we need to find the next good calibration
               sensor_date_lead = dplyr::lead(sensor_date, 1),
               calibration_coefs_lead = dplyr::lead(calibration_coefs, 1)
-              # TODO: Add lag calibration for bad calibration adjustment in the future
             )
         }) %>%
         # Transform back to site-parameter
