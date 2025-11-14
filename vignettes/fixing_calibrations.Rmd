@@ -109,6 +109,16 @@ along with their related identification and datetime information.
 
 sensor_data <- read_rds(here("..", "poudre_sonde_network", "data", "manual_data_verification", "complete_dataset", "23_25_hv_pull"))
 
+# adding field flag data
+
+sensor_data <- sensor_data %>% 
+  map(function(year_list){
+    year_data <- year_list %>% 
+      map(function(site_param_df){
+        add_field_flag(site_param_df)
+      })
+  })
+
 # Commenting all this out. I think there is a better data source somewhere. -JPD
 
 # if (file.exists(here("data", "manual_data_verification", "complete_dataset", "23_25_hv_pull"))) {
@@ -371,8 +381,8 @@ calibration_p_test <- ggplot(plot_data) +
   geom_line(aes(x = DT_round, y = value, color = correct_calibration), 
             alpha = 0.7, size = 0.5) +
   scale_color_manual(values = c("TRUE" = "green", 
-                               "FALSE" = "red", 
-                               "Original" = "grey")) +
+                                "FALSE" = "red", 
+                                "Original" = "grey")) +
   labs(
     title = paste(site, parameter, "2024 Calibration"),
     x = "Date",
