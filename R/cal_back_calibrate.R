@@ -28,30 +28,16 @@ cal_back_calibrate <- function(prepped_snsr_cal_df) {
   parameter <- unique(prepped_snsr_cal_df$parameter)
 
   # Standard sensor calibration pathway (five-step process)
-  if (parameter %in% c("Chl-a Fluorescence", "FDOM Fluorescence", "ORP", "Pressure", "Specific Conductivity", "RDO")) {
+  if (parameter %in% c("Chl-a Fluorescence", "FDOM Fluorescence", "ORP", "Pressure", "Specific Conductivity", "RDO", "Turbidity")) {
     back_calibrated_chunk <- prepped_snsr_cal_df %>%
         # Calculate temporal weights for calibration interpolation
         cal_wt(df = ., dt_col = "DT_round") %>%
-        # Convert observed values back to raw instrumental units
-        cal_inv_lm(df = ., obs_col = "mean", lm_coefs_col = "calibration_coefs") %>%
+        # Raw conversion is done, need to transform back now
+        # Those sections that could not be transformed will not be transformed
         # Apply temporally-weighted linear transformation between calibrations
-        cal_lin_trans_lm(df = ., raw_col = "mean_raw", lm_coefs_col = "calibration_coefs", wt_col = "wt") %>%
+        cal_lin_trans_lm(df = ., raw_col = "mean_raw", slope_col = "slope", offset_col = "offset", wt_col = "wt") %>%
         # Validate calibration results and create final calibrated values
         cal_check(df = ., obs_col = "mean", lm_trans_col = "mean_lm_trans")
-    return(head(back_calibrated_chunk, -1))
-  }
-
-  # Turbidity sensor calibration pathway (two-point drift correction)
-  if (parameter == "Turbidity") {
-    back_calibrated_chunk <- prepped_snsr_cal_df %>%
-      # Calculate temporal weights for calibration interpolation
-      cal_wt(df = ., dt_col = "DT_round") %>%
-      # Convert observed values back to raw instrumental units
-      cal_inv_lm(df = ., obs_col = "mean", lm_coefs_col = "calibration_coefs") %>%
-      # Apply temporally-weighted linear transformation between calibrations
-      cal_lin_trans_lm(df = ., raw_col = "mean_raw", lm_coefs_col = "calibration_coefs", wt_col = "wt") %>%
-      # Validate calibration results and create final calibrated values
-      cal_check(df = ., obs_col = "mean", lm_trans_col = "mean_lm_trans")
     return(head(back_calibrated_chunk, -1))
   }
 

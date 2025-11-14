@@ -9,45 +9,56 @@
 #' The transformation accounts for gradual sensor drift by blending calibration
 #' parameters based on time position.
 #'
-#' @param df Tibble containing sensor data bounded by two calibrations
+#' @param df Tibble containing sensor data bounded by two calibrations. Must
+#'   include lead calibration parameters (slope_lead, offset_lead) for the
+#'   temporal interpolation.
 #' @param raw_col Character string specifying the column name containing raw
 #'   observation values from the inverse linear model transformation
-#' @param lm_coefs_col Character string specifying the column name containing
-#'   linear model coefficients
+#' @param slope_col Character string specifying the column name containing
+#'   slope coefficients from the first (earliest) calibration
+#' @param offset_col Character string specifying the column name containing
+#'   offset coefficients from the first (earliest) calibration
 #' @param wt_col Character string specifying the column name containing temporal
-#'   weight parameters
+#'   weight parameters for interpolation between calibrations
+#'
+#' @return The input dataframe with an additional column containing linearly
+#'   transformed values. Column name follows the pattern:
+#'   "{raw_col_prefix}_lm_trans" (e.g., "mean_lm_trans" from "mean_raw").
+#'   Returns NA values when calibration parameters are missing.
+#'
+#' @details
+#' The function uses hard-coded "slope_lead" and "offset_lead" columns for the
+#' second calibration parameters. The temporal interpolation formula is:
+#' y = (m₁ - wt(m₁ - m₂))x + (b₁ - wt(b₁ - b₂))
+#' where wt represents the temporal weight between 0 and 1.
 #'
 #' @seealso [cal_wt()]
 #' @seealso [cal_inv_lm()]
 #' @seealso [cal_one_point_drift()]
 #' @seealso [cal_two_point_drift()]
 
-cal_lin_trans_lm <- function(df, raw_col, lm_coefs_col, wt_col){
+cal_lin_trans_lm <- function(df, raw_col, slope_col, offset_col, wt_col){
 
   # Create output column name for linearly transformed values
   transformed_col <- paste0(str_split_1(raw_col, "_")[1], "_lm_trans")
 
   # Extract calibration coefficients from bounding calibrations
-  calibration_1 <- df[[lm_coefs_col]][[1]]
-  # I am hard coding this in for now to move forward, there will be lots of updates to spruce this up later
-  calibration_2 <- df[["calibration_coefs_lead"]][[1]]
+
+  # Calibration 1
+  slope_1 <- df[[slope_col]][1]
+  offset_1 <- df[[offset_col]][1]
+
+  # Calibration 2
+  # Hard coded for now
+  slope_2 <- df[["slope_lead"]][1]
+  offset_2 <- df[["offset_lead"]][1]
 
   # Handle missing calibration data
-  cal_1_check <- (is.data.frame(calibration_1) && nrow(calibration_1) != 0)
-  cal_2_check <- (is.data.frame(calibration_2) && nrow(calibration_2) != 0)
-  if (!cal_1_check | !cal_2_check){
+  if (any(is.na(c(slope_1, offset_1, slope_2, offset_2)))) {
     df <- df %>%
-      mutate(!!transformed_col := NA_integer_)
+      mutate(!!raw_col := NA_integer_)
     return(df)
   }
-
-  # Extract parameters from first calibration (earliest)
-  slope_1 <- as.numeric(calibration_1 %>% pull(slope))
-  offset_1 <- as.numeric(calibration_1 %>% pull(offset))
-
-  # Extract parameters from second calibration (latest)
-  slope_2 <- as.numeric(calibration_2 %>% pull(slope))
-  offset_2 <- as.numeric(calibration_2 %>% pull(offset))
 
   # Calculate parameter differences for temporal interpolation
   slope_delta <- slope_1 - slope_2

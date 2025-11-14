@@ -4,19 +4,30 @@
 \alias{cal_lin_trans_lm}
 \title{Linear Transition Between Linear Models}
 \usage{
-cal_lin_trans_lm(df, raw_col, lm_coefs_col, wt_col)
+cal_lin_trans_lm(df, raw_col, slope_col, offset_col, wt_col)
 }
 \arguments{
-\item{df}{Tibble containing sensor data bounded by two calibrations}
+\item{df}{Tibble containing sensor data bounded by two calibrations. Must
+include lead calibration parameters (slope_lead, offset_lead) for the
+temporal interpolation.}
 
 \item{raw_col}{Character string specifying the column name containing raw
 observation values from the inverse linear model transformation}
 
-\item{lm_coefs_col}{Character string specifying the column name containing
-linear model coefficients}
+\item{slope_col}{Character string specifying the column name containing
+slope coefficients from the first (earliest) calibration}
+
+\item{offset_col}{Character string specifying the column name containing
+offset coefficients from the first (earliest) calibration}
 
 \item{wt_col}{Character string specifying the column name containing temporal
-weight parameters}
+weight parameters for interpolation between calibrations}
+}
+\value{
+The input dataframe with an additional column containing linearly
+transformed values. Column name follows the pattern:
+"{raw_col_prefix}_lm_trans" (e.g., "mean_lm_trans" from "mean_raw").
+Returns NA values when calibration parameters are missing.
 }
 \description{
 Applies temporally-weighted linear transformation between two consecutive
@@ -25,6 +36,12 @@ parameters from calibration 1 (earliest) and calibration 2 (latest) using
 temporal weights to create a smooth transition across the calibration window.
 The transformation accounts for gradual sensor drift by blending calibration
 parameters based on time position.
+}
+\details{
+The function uses hard-coded "slope_lead" and "offset_lead" columns for the
+second calibration parameters. The temporal interpolation formula is:
+y = (m₁ - wt(m₁ - m₂))x + (b₁ - wt(b₁ - b₂))
+where wt represents the temporal weight between 0 and 1.
 }
 \seealso{
 \code{\link[=cal_wt]{cal_wt()}}

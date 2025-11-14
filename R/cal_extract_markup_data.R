@@ -231,7 +231,7 @@ cal_extract_markup_data <- function(field_cal_dir = here::here("data", "calibrat
     # TO USE TO MAKE THE THRESHOLD
     # For now we are just going to use all the sensor calibration coefficients as the
     # statistic that we are going to use
-    annotate_calibration_data() %>%
+    ross.wq.tools::annotate_calibration_data() %>%
     # Structure calibration data by year and site-parameter combinations
     # Split by year
     split(f = lubridate::year(.$file_date)) %>%
@@ -257,21 +257,51 @@ cal_extract_markup_data <- function(field_cal_dir = here::here("data", "calibrat
         split(f = list(.$sensor, .$sensor_serial), sep = "-") %>%
         discard(~is.null(.) || nrow(.) == 0) %>%
         map_dfr(function(sensor_serial_df) {
-          sensor_serial_df %>%
+
+          # Split the data between good and bad calibrations and then join them again
+
+          # Check if we have any good calibrations
+          good_calibrations <- sensor_serial_df %>%
+            dplyr::filter(correct_calibration)
+
+          if (nrow(good_calibrations) > 0) {
+            good_calibrations <- good_calibrations %>%
+              dplyr::arrange(sensor_date) %>%
+              dplyr::mutate(
+                sensor_date_lead = dplyr::lead(sensor_date, 1),
+                slope_lead = dplyr::lead(slope, 1),
+                offset_lead = dplyr::lead(offset, 1),
+                correct_calibration_lead = dplyr::lead(correct_calibration, 1)
+              )
+          } else {
+            # If no good calibrations, return the df as is
+            return(sensor_serial_df)
+          }
+
+          # Check if we have any bad calibrations
+          bad_calibrations <- sensor_serial_df %>%
+            dplyr::filter(!correct_calibration)
+
+
+          # Combine them
+          calibrations <- dplyr::bind_rows(good_calibrations, bad_calibrations) %>%
             dplyr::arrange(sensor_date) %>%
-            dplyr::mutate(
-              correct_calibration_lead = dplyr::lead(correct_calibration, 1),
-              # instead of a simple lead, we need to find the next good calibration
-              sensor_date_lead = dplyr::lead(sensor_date, 1),
-              calibration_coefs_lead = dplyr::lead(calibration_coefs, 1)
+            # forward fill the next good calibration
+            tidyr::fill(
+              sensor_date_lead, slope_lead, offset_lead, correct_calibration_lead,
+              .direction = "down"
             )
+
+          return(calibrations)
+
         }) %>%
         # Transform back to site-parameter
         split(f = list(.$site, .$sensor), sep = "-", drop = TRUE) %>%
         purrr::discard(\(site_param_df) nrow(site_param_df) == 0)
 
+      return(site_param_split_list)
     })
 
   # Return organized calibration data structure
-  return(calibrations_list)
+  return(calibration_list)
 }

@@ -2,25 +2,70 @@
 % Please edit documentation in R/cal_prepare_calibration_windows.R
 \name{cal_prepare_calibration_windows}
 \alias{cal_prepare_calibration_windows}
-\title{Prepare Sensor Calibration Data Windows for Back Calibration}
+\title{Prepare sensor data for back calibration by inverting to raw values and creating calibration windows}
 \usage{
 cal_prepare_calibration_windows(sensor_calibration_data_list)
 }
 \arguments{
 \item{sensor_calibration_data_list}{Nested list containing joined sensor and
 calibration data from join_sensor_calibration_data(), organized by year
-and site-parameter combinations}
+and site-parameter combinations. Must include calibration flags and
+lead calibration parameters for transformation.}
+}
+\value{
+Nested list structure (year -> site-parameter -> calibration chunks)
+where each calibration chunk contains:
+\itemize{
+\item Raw sensor values (mean_raw) computed via inverse linear transformation
+\item Original calibrated values for comparison
+\item Calibration window boundaries defined by consecutive good calibrations
+\item All original sensor metadata and timestamps
+}
+
+Chunks with no valid next calibration have slope_lead, offset_lead, and
+mean_raw set to NA to prevent invalid transformations.
 }
 \description{
-Segments joined sensor-calibration data into calibration windows bounded by
-consecutive calibrations. This function creates data chunks where each chunk
-contains sensor data from one calibration period plus the first row from the
-next calibration, enabling temporal interpolation between calibration
-parameters. Processes data hierarchically by year and site-parameter
-combinations to maintain organization structure.
+Transforms sensor data back to raw values and creates calibration windows for
+drift correction analysis. The function processes joined sensor-calibration data
+by first inverting calibrated measurements to their original raw form using the
+inverse linear model transformation, then segments the data into windows bounded
+by consecutive good calibrations.
+
+Raw data transformation is essential for drift detection because it reveals the
+actual sensor response patterns that occur between calibrations. The function
+handles missing or bad calibrations by skipping transformation when no valid
+next calibration exists, preventing invalid corrections downstream.
+}
+\details{
+The function performs two key operations:
+\enumerate{
+\item \strong{Raw value recovery}: Uses cal_inv_lm() to transform calibrated sensor
+readings back to raw values using the inverse of the linear calibration model
+\item \strong{Window segmentation}: Creates data chunks between consecutive good
+calibrations using the sensor_date_lead_char column as grouping criteria
+}
+
+This preparation enables downstream drift detection algorithms to analyze the
+actual sensor response patterns that occur during deployment periods.
+}
+\examples{
+\dontrun{
+# Prepare calibration windows from joined data
+joined_data <- join_sensor_calibration_data(sensor_list, calibration_data)
+calibration_windows <- cal_prepare_calibration_windows(joined_data)
+
+# Check structure of prepared windows
+names(calibration_windows)  # Years
+names(calibration_windows$`2024`)  # Site-parameter combinations
+length(calibration_windows$`2024`$`site1-Temperature`)  # Number of chunks
+}
+
 }
 \seealso{
 \code{\link[=join_sensor_calibration_data]{join_sensor_calibration_data()}}
+
+\code{\link[=cal_inv_lm]{cal_inv_lm()}}
 
 \code{\link[=back_calibrate]{back_calibrate()}}
 }

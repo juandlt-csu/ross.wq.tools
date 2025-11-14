@@ -8,6 +8,11 @@
 #' falls back to original observations when calibration fails. Creates a
 #' calibration success flag for quality control purposes.
 #'
+#' @details
+#' Note that since the most recent update this function does not break, though
+#' it might not track correctly when data from a bad calibration that cannot be
+#' changed remains unaltered in the final checking column `lm_trans_col`.
+#'
 #' @param df Tibble containing sensor data with calibration transformations
 #' @param obs_col Character string specifying the column name containing
 #'   original sensor observations
