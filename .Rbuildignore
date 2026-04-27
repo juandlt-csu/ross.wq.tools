@@ -7,3 +7,5 @@ creds
 inst/threshold_example
 inst/explorations
 inst/threshold_example
+^.*\.Rproj$
+^\.Rproj\.user$
