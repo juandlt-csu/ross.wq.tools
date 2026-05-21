@@ -30,7 +30,7 @@ cal_extract_markup_data <- function(field_cal_dir = here::here("data", "raw", "s
   # Prepare field calibrations for extraction ====
   # Identify and filter field calibration HTML files
   f_cal_paths <- list.files(field_cal_dir, pattern = ".html", full.names = T)
-  f_cal_paths <- purrr::discard(f_cal_paths, ~grepl("vulink|virridy", .x, ignore.case = T))
+  f_cal_paths <- purrr::discard(f_cal_paths, ~grepl("vulink", .x, ignore.case = T))
 
   if (length(f_cal_paths) == 0){
     stop("No HTML calibration files found in field_cal_dir: ", field_cal_dir)
@@ -48,6 +48,9 @@ cal_extract_markup_data <- function(field_cal_dir = here::here("data", "raw", "s
 
       # Parse site name from filename
       site <- str_list[1]
+      if (grepl("virridy", basename(path_str), ignore.case = TRUE)) {
+        site <- paste0(site, "_virridy")
+      }
 
       # Parse and convert datetime to UTC
       date <- str_list[2:3] %>%
