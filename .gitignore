@@ -61,5 +61,6 @@ sandbox*/
 # Data folders
 data/
 **/data/
-
-
+.positai
+.vscode/
+.DS_Store

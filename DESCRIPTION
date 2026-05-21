@@ -19,34 +19,34 @@ Description: Tools for processing, analyzing, and flagging water quality data
 License: MIT + file LICENSE
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
-RoxygenNote: 7.3.3
-Imports: 
-    data.table,
-    tidyverse,
-    lubridate,
-    zoo,
-    padr,
-    stats,
-    RcppRoll,
-    yaml,
-    janitor,
-    Rcpp,
-    magrittr,
-    dplyr,
-    purrr,
-    rlang,
-    httr2,
-    rvest,
-    stringr,
+Imports:
     arrow,
+    data.table,
+    dplyr,
+    groupdata2,
+    httr2,
+    janitor,
+    lubridate,
+    magrittr,
+    padr,
+    purrr,
+    RcppRoll,
     readr,
     readxl,
+    rlang,
+    rvest,
+    slider,
+    stats,
+    stringr,
     tibble,
     tidyr,
     xml2,
-    groupdata2, 
-    slider
+    yaml,
+    zoo
 Suggests: 
     knitr,
-    rmarkdown
+    rmarkdown,
+    testthat (>= 3.0.0)
 VignetteBuilder: knitr
+Config/testthat/edition: 3
+Config/roxygen2/version: 8.0.0
