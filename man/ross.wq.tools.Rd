@@ -17,6 +17,7 @@ This package contains additional functions not included in it's parent package
 
 Authors:
 \itemize{
+  \item Juan De La Torre \email{Juan.DeLaTorre@colostate.edu}
   \item Kathryn Willi \email{Kathryn.Willi@colostate.edu}
   \item Samuel Struthers \email{Samuel.Struthers@colostate.edu}
 }
