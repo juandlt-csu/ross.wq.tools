@@ -2,9 +2,9 @@
 % Please edit documentation in R/cal_one_point_drift.R
 \name{cal_one_point_drift}
 \alias{cal_one_point_drift}
-\title{One Point Drift Calibration}
+\title{Correcting Calibration Drift (One Point)}
 \usage{
-cal_one_point_drift(df, lm_trans_col, drift_corr_col, wt_col)
+cal_one_point_drift(df, lm_trans_col, pre_col, post_col, wt_col)
 }
 \arguments{
 \item{df}{Tibble containing sensor data bounded by two calibrations}
@@ -12,8 +12,15 @@ cal_one_point_drift(df, lm_trans_col, drift_corr_col, wt_col)
 \item{lm_trans_col}{Character string specifying the column name containing
 linearly transformed data from cal_lin_trans_lm()}
 
-\item{drift_corr_col}{Character string specifying the column name containing
-drift correction information}
+\item{pre_col}{Character string specifying the column name containing the
+pre-calibration field measurement (sensor reading before cleaning/calibration).
+This column is typically produced by add_field_notes() and contains the raw
+sensor value recorded at the start of each site visit.}
+
+\item{post_col}{Character string specifying the column name containing the
+post-calibration field measurement (sensor reading after cleaning/calibration).
+This column is typically produced by add_field_notes() and contains the raw
+sensor value recorded at the end of each site visit.}
 
 \item{wt_col}{Character string specifying the column name containing temporal
 weight parameters}

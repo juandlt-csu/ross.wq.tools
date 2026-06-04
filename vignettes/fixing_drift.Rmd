@@ -71,20 +71,16 @@ This pulls the sensor time series data that has been manually calibrated.
 
 ```{r}
 # TODO: Still need to find a drift detection method that we can trust running programatically
-
-# Just doing turbidity for now...
-optical_sensors <- c("Turbidity")
-
 sensor_f <- list.files(here::here("data", "raw", "sensor", "manual_data_verification",
-                                  "2025_cycle", "in_progress", "verified_directory"),
-                       pattern = "Turbidity", 
+                                  "2024_cycle", "in_progress", "verified_directory"),
+                       pattern = "Turbidity|FDOM Fluorescence", 
                        ignore.case = TRUE,
                        full.names = TRUE)
 
 data <- map(sensor_f, arrow::read_parquet) %>%
-  set_names(stringr::str_extract(basename(sensor_f), "^[^_]+"))
+  set_names(stringr::str_remove(basename(sensor_f), "_FINAL.*$"))
 
-rm(optical_sensors, sensor_f)
+rm(sensor_f)
 gc()
 ```
 
@@ -131,7 +127,7 @@ plot_drift <- function(df) {
 ```
 
 ```{r}
-plot_drift(data$`riverbluffs-Turbidity`)
+plot_drift(data$`archery_virridy-FDOM Fluorescence`)
 ```
 
 # Find a workable drift correction example

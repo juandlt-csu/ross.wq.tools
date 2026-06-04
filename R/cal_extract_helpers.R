@@ -3,13 +3,13 @@
 #' @export
 cal_extract_chla_data <- function(div) {
   div_tables <- div %>%
-    html_elements("table") %>%
-    discard(\(x) length(html_elements(x, "caption")) == 0)  %>%
-    html_table() %>%
+    rvest::html_elements("table") %>%
+    discard(\(x) length(rvest::html_elements(x, "caption")) == 0)  %>%
+    rvest::html_table() %>%
     set_names(
       {div %>%
-          html_elements("caption") %>%
-          html_text() %>%
+          rvest::html_elements("caption") %>%
+          rvest::html_text() %>%
           janitor::make_clean_names()
       }
     )
@@ -61,13 +61,13 @@ cal_extract_chla_data <- function(div) {
 #' @export
 cal_extract_conductivity_data <- function(div) {
   div_tables <- div %>%
-    html_elements("table") %>%
-    discard(\(x) length(html_elements(x, "caption")) == 0) %>%
-    html_table() %>%
+    rvest::html_elements("table") %>%
+    discard(\(x) length(rvest::html_elements(x, "caption")) == 0) %>%
+    rvest::html_table() %>%
     set_names(
       {div %>%
-          html_elements("caption") %>%
-          html_text() %>%
+          rvest::html_elements("caption") %>%
+          rvest::html_text() %>%
           janitor::make_clean_names()
       }
     )
@@ -132,13 +132,13 @@ cal_extract_conductivity_data <- function(div) {
 #' @export
 cal_extract_fdom_data <- function(div) {
   div_tables <- div %>%
-    html_elements("table") %>%
-    discard(\(x) length(html_elements(x, "caption")) == 0) %>%
-    html_table() %>%
+    rvest::html_elements("table") %>%
+    discard(\(x) length(rvest::html_elements(x, "caption")) == 0) %>%
+    rvest::html_table() %>%
     set_names(
       {div %>%
-          html_elements("caption") %>%
-          html_text() %>%
+          rvest::html_elements("caption") %>%
+          rvest::html_text() %>%
           janitor::make_clean_names()
       }
     )
@@ -190,13 +190,13 @@ cal_extract_fdom_data <- function(div) {
 #' @export
 cal_extract_ph_orp_data <- function(div) {
   div_tables <- div %>%
-    html_elements("table") %>%
-    discard(\(x) length(html_elements(x, "caption")) == 0) %>%
-    html_table() %>%
+    rvest::html_elements("table") %>%
+    discard(\(x) length(rvest::html_elements(x, "caption")) == 0) %>%
+    rvest::html_table() %>%
     set_names(
       {div %>%
-          html_elements("caption") %>%
-          html_text() %>%
+          rvest::html_elements("caption") %>%
+          rvest::html_text() %>%
           janitor::make_clean_names()
       }
     )
@@ -294,13 +294,13 @@ cal_extract_ph_orp_data <- function(div) {
 #' @export
 cal_extract_pressure_data <- function(div) {
   div_tables <- div %>%
-    html_elements("table") %>%
-    discard(\(x) length(html_elements(x, "caption")) == 0) %>%
-    html_table() %>%
+    rvest::html_elements("table") %>%
+    discard(\(x) length(rvest::html_elements(x, "caption")) == 0) %>%
+    rvest::html_table() %>%
     set_names(
       {div %>%
-          html_elements("caption") %>%
-          html_text() %>%
+          rvest::html_elements("caption") %>%
+          rvest::html_text() %>%
           janitor::make_clean_names()
       }
     )
@@ -356,13 +356,13 @@ cal_extract_pressure_data <- function(div) {
 #' @export
 cal_extract_rdo_data <- function(div) {
   div_tables <- div %>%
-    html_elements("table") %>%
-    discard(\(x) length(html_elements(x, "caption")) == 0) %>%
-    html_table() %>%
+    rvest::html_elements("table") %>%
+    discard(\(x) length(rvest::html_elements(x, "caption")) == 0) %>%
+    rvest::html_table() %>%
     set_names(
       {div %>%
-          html_elements("caption") %>%
-          html_text() %>%
+          rvest::html_elements("caption") %>%
+          rvest::html_text() %>%
           janitor::make_clean_names()
       }
     )
@@ -414,13 +414,13 @@ cal_extract_rdo_data <- function(div) {
 #' @export
 cal_extract_turbidity_data <- function(div) {
   div_tables <- div %>%
-    html_elements("table") %>%
-    discard(\(x) length(html_elements(x, "caption")) == 0) %>%
-    html_table() %>%
+    rvest::html_elements("table") %>%
+    discard(\(x) length(rvest::html_elements(x, "caption")) == 0) %>%
+    rvest::html_table() %>%
     set_names(
       {div %>%
-          html_elements("caption") %>%
-          html_text() %>%
+          rvest::html_elements("caption") %>%
+          rvest::html_text() %>%
           janitor::make_clean_names()
       }
     )
