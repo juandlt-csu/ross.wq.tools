@@ -1,4 +1,4 @@
-#' @title One Point Drift Calibration
+#' @title Correcting Calibration Drift (One Point)
 #' @export
 #'
 #' @description
@@ -12,19 +12,20 @@
 #' @param df Tibble containing sensor data bounded by two calibrations
 #' @param lm_trans_col Character string specifying the column name containing
 #'   linearly transformed data from cal_lin_trans_lm()
-#' @param drift_corr_col Character string specifying the column name containing
-#'   drift correction information
+#' @param pre_col Character string specifying the column name containing the
+#'   pre-calibration field measurement (sensor reading before cleaning/calibration).
+#'   This column is typically produced by add_field_notes() and contains the raw
+#'   sensor value recorded at the start of each site visit.
+#' @param post_col Character string specifying the column name containing the
+#'   post-calibration field measurement (sensor reading after cleaning/calibration).
+#'   This column is typically produced by add_field_notes() and contains the raw
+#'   sensor value recorded at the end of each site visit.
 #' @param wt_col Character string specifying the column name containing temporal
 #'   weight parameters
 #'
 #' @seealso [cal_wt()]
 #' @seealso [cal_lin_trans_lm()]
 #' @seealso [cal_check()]
-
-
-# Instead of drift_corr_col, we are going to set a pre and post column for now.
-# before we do this we are going to want to do a weight column based on "drift groups",
-# ths is those consecutive sections of data that are flagged with drift.
 
 cal_one_point_drift <- function(df, lm_trans_col, pre_col, post_col, wt_col){
 
@@ -51,10 +52,6 @@ cal_one_point_drift <- function(df, lm_trans_col, pre_col, post_col, wt_col){
   # This doesn't work with collected field values either. The difference between
   # The drift data at the end and the correct data later is often ~100ish points,
   # 5 number summary of the difference between pre and post field collected values
-
-  # This chunk of code is from the deprecated version of this function.
-  # expected_standard <- as.numeric(drift_back_calibration %>% pull(post_measurement))
-  # observed_standard <- as.numeric(drift_back_calibration %>% pull(pre_measurement))
 
   # Calculate drift offset between expected and observed standards
   standard_delta <- post_drift_back_calibration - pre_drift_back_calibration
