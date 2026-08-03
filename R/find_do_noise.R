@@ -51,7 +51,7 @@ find_do_noise <- function(df){
                     center = data.table::frollapply(DO_drift_binary, N = 96, FUN = check_day_hour_window_fail, align = "center", fill = NA)) %>%
       # Flag possible burial if either window check indicates persistent interference
       add_flag(right == 1 | center == 1, "Possible burial") %>% 
-      select(-c(DO_drift_binary, right, center))
+      dplyr::select(-c(DO_drift_binary, right, center))
     
     
     return(df)
