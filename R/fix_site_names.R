@@ -35,6 +35,7 @@ fix_site_names <- function(df, site_col = "site") {
     # renaming all the sites, just in case
     dplyr::mutate(!!rlang::sym(site_col) := dplyr::case_when(
       grepl("tamasag", !!rlang::sym(site_col), ignore.case = TRUE) ~ stringr::str_replace(!!rlang::sym(site_col), "tamasag", "bellvue"),
+      grepl("rist", !!rlang::sym(site_col), ignore.case = TRUE) ~ stringr::str_replace(!!rlang::sym(site_col), "rist", "bellvue"),
       grepl("legacy", !!rlang::sym(site_col), ignore.case = TRUE) ~ stringr::str_replace(!!rlang::sym(site_col), "legacy", "salyer"),
       grepl("lincoln", !!rlang::sym(site_col), ignore.case = TRUE) ~ stringr::str_replace(!!rlang::sym(site_col), "lincoln", "udall"),
       grepl("timberline", !!rlang::sym(site_col), ignore.case = TRUE) ~ stringr::str_replace(!!rlang::sym(site_col), "timberline", "riverbend"),
