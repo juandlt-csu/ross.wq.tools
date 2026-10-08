@@ -21,7 +21,7 @@ A data frame with one row per season and the columns:
 \item \code{t_sd}: standard deviation of \code{mean} across the full data set (unlike \code{t_sd_0199})
 }
 
-\code{t_mean01}, \code{t_median}, and \code{t_sd} will be used by \code{add_burial_flag()} to build
+\code{t_mean01}, \code{t_median}, and \code{t_sd} are used by \code{add_burial_flag()} to build
 the seasonal band score for DO.
 }
 \description{

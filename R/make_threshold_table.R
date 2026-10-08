@@ -17,7 +17,7 @@
 #' - `t_median`: median of `mean`
 #' - `t_sd`: standard deviation of `mean` across the full data set (unlike `t_sd_0199`)
 #'
-#' `t_mean01`, `t_median`, and `t_sd` will be used by `add_burial_flag()` to build
+#' `t_mean01`, `t_median`, and `t_sd` are used by `add_burial_flag()` to build
 #' the seasonal band score for DO.
 
 make_threshold_table <- function(df){
